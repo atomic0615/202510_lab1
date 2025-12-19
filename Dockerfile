@@ -8,12 +8,26 @@ FROM ${BASE_IMAGE}
 # - 若為 Alpine (apk)，使用 apk upgrade
 # - 若為 Debian/Ubuntu (apt-get)，使用 apt-get upgrade
 # 這樣可以在不同 base image 下盡量取得已修補的套件
+# 嘗試升級並針對已知易受攻擊的套件進行更新：libxml2、libxslt、expat、xz、perl、openssl
+# 這會根據 base image 的 package manager（apk / apt）自動採取對應動作
 RUN if command -v apk >/dev/null 2>&1; then \
-      apk update && apk upgrade --no-cache; \
+      apk update && apk upgrade --no-cache && \
+      apk add --no-cache libxml2 libxslt expat xz perl openssl || true; \
     elif command -v apt-get >/dev/null 2>&1; then \
-      apt-get update && apt-get upgrade -y && rm -rf /var/lib/apt/lists/*; \
+      apt-get update && apt-get upgrade -y && \
+      apt-get install -y --only-upgrade libxml2 libxslt1.1 libexpat1 xz-utils perl openssl curl || true && \
+      rm -rf /var/lib/apt/lists/*; \
     else \
       echo "No known package manager found; skipping upgrade"; \
+    fi
+
+# 移除不必要的工具以降低攻擊面（若系統中有 curl，且專案不需要，則移除）
+RUN if command -v apk >/dev/null 2>&1; then \
+      if apk info | grep -q '^curl$'; then apk del --no-network curl || true; fi; \
+    elif command -v apt-get >/dev/null 2>&1; then \
+      if dpkg -s curl >/dev/null 2>&1; then apt-get remove -y --purge curl && apt-get autoremove -y && rm -rf /var/lib/apt/lists/*; fi; \
+    else \
+      echo "No known package manager found; skipping curl removal"; \
     fi
 
 # 維護者資訊
