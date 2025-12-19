@@ -1,6 +1,7 @@
-# 使用精簡且鎖定次版本的 Nginx Alpine 映像（移除 perl 變體以降低攻擊面）
-# 建議改為具體版本或由 CI 經常更新並以 digest pin（例如：nginx:1.26.6-alpine3.18）
-FROM nginx:1.26.6-alpine3.18
+# 使用可配置的 base image，建議在 PR/CI 中以 digest pin 或具體 tag 更新
+ARG BASE_IMAGE=nginx:1.26.6-alpine3.18
+# 若你有穩定的 digest，可把 BASE_IMAGE 改為帶有 sha256 的鏡像（更安全）
+FROM ${BASE_IMAGE}
 
 # 在建置時更新基底套件以嘗試獲得最新修補（建議仍以新映像為主）
 RUN apk update && apk upgrade --no-cache

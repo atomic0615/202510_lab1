@@ -224,6 +224,64 @@ jobs:
         with:
           sarif_file: trivy-results.sarif
 
+      - name: Upload Trivy SARIF artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-results
+          path: trivy-results.sarif
+
+  # 新增：Base Image 掃描（檢查基底映像是否包含高風險漏洞）
+  base-image-scan:
+    runs-on: ubuntu-latest
+    name: Base Image Scan - Trivy (base)
+    permissions:
+      contents: read
+      security-events: write
+    env:
+      BASE_IMAGE: 'nginx:1.26.6-alpine3.18'
+    steps:
+      - name: Checkout 代碼
+        uses: actions/checkout@v4
+
+      - name: 掃描 Base Image（Trivy）
+        uses: aquasecurity/trivy-action@v1
+        with:
+          scan-type: 'image'
+          image-ref: '${{ env.BASE_IMAGE }}'
+          format: 'sarif'
+          output: 'trivy-base.sarif'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Upload Trivy base SARIF artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-base
+          path: trivy-base.sarif
+
+      - name: Fail on Trivy base HIGH/CRITICAL findings
+        if: always()
+        run: |
+          apt-get update && apt-get install -y jq || true
+          if [ -f "trivy-base.sarif" ]; then
+            count=$(jq '[.runs[].results[]? | select(.level=="CRITICAL" or .level=="HIGH" or (.properties.severity=="CRITICAL") or (.properties.severity=="HIGH"))] | length' trivy-base.sarif 2>/dev/null || echo 0)
+            if [ "${count:-0}" -gt 0 ]; then
+              echo "Trivy base image 掃描發現 ${count} 個 HIGH/CRITICAL 問題，請升級或替換 base image"
+              exit 1
+            else
+              echo "Trivy base image 無 HIGH/CRITICAL 發現"
+            fi
+          else
+            echo "trivy-base.sarif 不存在，跳過失敗檢查"
+          fi
+
+      - name: 上傳 Base Image 掃描結果（SARIF）
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: trivy-base.sarif
+
   # 4. 基礎設施即程式碼 (IaC) 安全檢查（僅在存在 IaC 檔案時執行）
   iac-scan:
     runs-on: ubuntu-latest

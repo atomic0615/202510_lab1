@@ -21,6 +21,7 @@
   - 鎖定 Trivy 與 Dependency-Check action 至 major tag（避免 `master`/`main` 浮動 refs）。已將 Dependency-Check action 鎖定為 `@v3`（建議將來鎖定到具體 release 或 SHA）。
   - 新增 Semgrep 與 Trivy 的 SARIF 檢查步驟：若發現 high/critical 或 Semgrep finding，相關 job 會失敗並阻止後續部署。
   - 新增 Dependabot 設定以每週自動檢查 Docker 基底映像與其它依賴的更新，減少已知 CVE。
+  - 新增 CI job `base-image-scan` 以定期掃描並上傳 base image 的 Trivy SARIF（若發現 HIGH/CRITICAL 將使 job 失敗以阻止不安全的映像被使用），並把 `trivy-results.sarif` 與 `trivy-base.sarif` 上傳為 artifact 以便下載與分析。
 
 ## 剩餘風險與建議
 
