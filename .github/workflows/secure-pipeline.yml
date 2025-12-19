@@ -9,9 +9,6 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
-  packages: write
 
 jobs:
   # 1. 原始碼安全掃描 (SAST)
@@ -32,8 +29,6 @@ jobs:
             p/security-audit
             p/secrets
             p/owasp-top-ten
-          publishToken: ${{ secrets.SEMGREP_APP_TOKEN }}
-          publishDeployment: ${{ github.ref == 'refs/heads/main' && '1' || '0' }}
 
       - name: 執行 Semgrep 掃描（生成 SARIF）
         if: always()
@@ -57,6 +52,22 @@ jobs:
         if: always()
         with:
           sarif_file: semgrep-results.sarif
+
+      - name: Fail on Semgrep findings
+        if: always()
+        run: |
+          apt-get update && apt-get install -y jq || true
+          if [ -f "semgrep-results.sarif" ]; then
+            count=$(jq '[.runs[].results[]?] | length' semgrep-results.sarif 2>/dev/null || echo 0)
+            if [ "${count:-0}" -gt 0 ]; then
+              echo "Semgrep 掃描發現 ${count} 個問題，將使 Job 失敗以阻止後續部署"
+              exit 1
+            else
+              echo "Semgrep 無發現"
+            fi
+          else
+            echo "semgrep-results.sarif 不存在，跳過失敗檢查"
+          fi
 
   # 2. 依賴套件漏洞檢測 (SCA)（僅在存在依賴檔案時執行）
   sca-scan:
@@ -89,7 +100,7 @@ jobs:
 
       - name: 執行 OWASP Dependency-Check
         if: steps.check-deps.outputs.has-deps == 'true'
-        uses: dependency-check/Dependency-Check_Action@main
+        uses: dependency-check/Dependency-Check_Action@v2
         id: depcheck
         with:
           project: 'MyProject'
@@ -163,7 +174,7 @@ jobs:
 
       - name: 執行 Trivy 容器映像掃描
         if: steps.check-container.outputs.has-container == 'true'
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@v1
         with:
           scan-type: 'image'
           image-ref: 'tic-tac-toe:${{ github.sha }}'
@@ -173,7 +184,7 @@ jobs:
 
       - name: 執行 Trivy 容器映像掃描（表格輸出）
         if: steps.check-container.outputs.has-container == 'true'
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@v1
         with:
           scan-type: 'image'
           image-ref: 'tic-tac-toe:${{ github.sha }}'
@@ -188,6 +199,22 @@ jobs:
           elif [ ! -f "trivy-results.sarif" ]; then
             echo "警告：SARIF 檔案未找到，建立空白檔案"
             echo '{"version":"2.1.0","runs":[]}' > trivy-results.sarif
+          fi
+
+      - name: Fail on Trivy HIGH/CRITICAL findings
+        if: steps.check-container.outputs.has-container == 'true'
+        run: |
+          apt-get update && apt-get install -y jq || true
+          if [ -f "trivy-results.sarif" ]; then
+            count=$(jq '[.runs[].results[]? | select(.level=="CRITICAL" or .level=="HIGH" or (.properties.severity=="CRITICAL") or (.properties.severity=="HIGH"))] | length' trivy-results.sarif 2>/dev/null || echo 0)
+            if [ "${count:-0}" -gt 0 ]; then
+              echo "Trivy 掃描發現 ${count} 個 HIGH/CRITICAL 問題，將使 Job 失敗以阻止後續部署"
+              exit 1
+            else
+              echo "Trivy 無 HIGH/CRITICAL 發現"
+            fi
+          else
+            echo "trivy-results.sarif 不存在，跳過失敗檢查"
           fi
 
       - name: 上傳容器掃描結果
@@ -326,7 +353,7 @@ jobs:
     runs-on: ubuntu-latest
     name: 建置並推送 Docker Image
     needs: [security-summary]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.security-summary.outputs.all-passed == 'true'
     permissions:
       contents: read
       packages: write
@@ -381,7 +408,7 @@ jobs:
     runs-on: ubuntu-latest
     name: 建置網站
     needs: [security-summary]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.security-summary.outputs.all-passed == 'true'
     steps:
       - name: Checkout 代碼
         uses: actions/checkout@v4
@@ -399,7 +426,7 @@ jobs:
     runs-on: ubuntu-latest
     name: 部署到 GitHub Pages
     needs: [build, security-summary]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.security-summary.outputs.all-passed == 'true'
     permissions:
       pages: write
       id-token: write

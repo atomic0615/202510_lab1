@@ -18,12 +18,15 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 # 修改 Nginx 配置以支援非 root 用戶運行
 RUN sed -i 's/listen\s*80;/listen 8080;/g' /etc/nginx/conf.d/default.conf && \
     sed -i 's/listen\s*\[::\]:80;/listen [::]:8080;/g' /etc/nginx/conf.d/default.conf && \
-    sed -i '/user\s*nginx;/d' /etc/nginx/nginx.conf && \
-    sed -i 's,/var/run/nginx.pid,/tmp/nginx.pid,' /etc/nginx/nginx.conf && \
-    sed -i "/^http {/a \    proxy_temp_path /tmp/proxy_temp;\n    client_body_temp_path /tmp/client_temp;\n    fastcgi_temp_path /tmp/fastcgi_temp;\n    uwsgi_temp_path /tmp/uwsgi_temp;\n    scgi_temp_path /tmp/scgi_temp;\n" /etc/nginx/nginx.conf
+    sed -i "s,root /usr/share/nginx/html;,root /usr/share/nginx/html;," /etc/nginx/conf.d/default.conf && \
+    mkdir -p /tmp/proxy_temp /tmp/client_temp /tmp/fastcgi_temp /tmp/uwsgi_temp /tmp/scgi_temp && \
+    chown -R nginx:nginx /usr/share/nginx/html /var/cache/nginx /tmp || true
 
 # 暴露 8080 端口（非特權端口）
 EXPOSE 8080
+
+# 以容器內預設的 nginx 使用者執行，避免使用 root
+USER nginx
 
 # 啟動 Nginx
 CMD ["nginx", "-g", "daemon off;"]
