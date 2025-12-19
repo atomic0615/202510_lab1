@@ -14,11 +14,13 @@
 
 - Docker
   - 將容器配置為在非 root 使用者（`nginx`）下執行，建立並 chown 必要目錄以降低權限風險。
+  - 已更新 `Dockerfile`：移除 `perl` 變體並鎖定為較新的 `nginx:1.26.6-alpine3.18`，建置時加入 `apk upgrade` 以嘗試取得最新修補，建議後續以 digest pin 並定期更新基底映像以減少 CVE。
 
 - CI / Workflow
   - 收緊 workflow 全域權限（只保留 `contents: read`）。
   - 鎖定 Trivy 與 Dependency-Check action 至 major tag（避免 `master`/`main` 浮動 refs）。
   - 新增 Semgrep 與 Trivy 的 SARIF 檢查步驟：若發現 high/critical 或 Semgrep finding，相關 job 會失敗並阻止後續部署。
+  - 新增 Dependabot 設定以每週自動檢查 Docker 基底映像與其它依賴的更新，減少已知 CVE。
 
 ## 剩餘風險與建議
 

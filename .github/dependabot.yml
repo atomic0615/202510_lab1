@@ -1,0 +1,13 @@
+version: 2
+updates:
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
+    ignore: []
+    labels:
+      - "dependencies"
+    # 可視需要加上 `allow` 或 `assignees` 來控制 PR 行為

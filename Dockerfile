@@ -1,5 +1,9 @@
-# 使用輕量級的 Nginx Alpine 映像
-FROM nginx:alpine3.18-perl
+# 使用精簡且鎖定次版本的 Nginx Alpine 映像（移除 perl 變體以降低攻擊面）
+# 建議改為具體版本或由 CI 經常更新並以 digest pin（例如：nginx:1.26.6-alpine3.18）
+FROM nginx:1.26.6-alpine3.18
+
+# 在建置時更新基底套件以嘗試獲得最新修補（建議仍以新映像為主）
+RUN apk update && apk upgrade --no-cache
 
 # 維護者資訊
 LABEL org.opencontainers.image.source="https://github.com/YOUR_USERNAME/YOUR_REPO"
