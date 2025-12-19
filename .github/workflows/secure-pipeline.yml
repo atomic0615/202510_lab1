@@ -100,7 +100,8 @@ jobs:
 
       - name: 執行 OWASP Dependency-Check
         if: steps.check-deps.outputs.has-deps == 'true'
-        uses: dependency-check/Dependency-Check_Action@v2
+        # 已鎖定至主要穩定版本，若有需要可鎖定到具體 release 或 SHA
+        uses: dependency-check/Dependency-Check_Action@v3
         id: depcheck
         with:
           project: 'MyProject'
