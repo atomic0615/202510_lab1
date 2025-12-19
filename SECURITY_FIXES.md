@@ -22,6 +22,7 @@
   - 新增 Semgrep 與 Trivy 的 SARIF 檢查步驟：若發現 high/critical 或 Semgrep finding，相關 job 會失敗並阻止後續部署。
   - 新增 Dependabot 設定以每週自動檢查 Docker 基底映像與其它依賴的更新，減少已知 CVE。
   - 新增 CI job `base-image-scan` 以定期掃描並上傳 base image 的 Trivy SARIF（若發現 HIGH/CRITICAL 將使 job 失敗以阻止不安全的映像被使用），並把 `trivy-results.sarif` 與 `trivy-base.sarif` 上傳為 artifact 以便下載與分析。
+  - 將 `Dockerfile` 的預設 base image 改為 `nginx:1.26.6`（Debian-based），並在建置時加入跨發行版的系統套件升級步驟（會根據 `apk` 或 `apt-get` 判斷執行），以降低 Alpine 特有套件（musl、busybox）及其 CVE 暴露。
 
 ## 剩餘風險與建議
 

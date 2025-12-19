@@ -239,7 +239,8 @@ jobs:
       contents: read
       security-events: write
     env:
-      BASE_IMAGE: 'nginx:1.26.6-alpine3.18'
+      # 預設改為 Debian-based nginx，若你想回測 Alpine 可以在 workflow Dispatch 或 PR 中改為帶有 alpine tags
+      BASE_IMAGE: 'nginx:1.26.6'
     steps:
       - name: Checkout 代碼
         uses: actions/checkout@v4

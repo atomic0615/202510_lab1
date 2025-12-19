@@ -1,10 +1,20 @@
 # 使用可配置的 base image，建議在 PR/CI 中以 digest pin 或具體 tag 更新
-ARG BASE_IMAGE=nginx:1.26.6-alpine3.18
+# 改為預設 Debian-based nginx，減少 Alpine (musl/busybox) 特有套件的 CVE 暴露
+ARG BASE_IMAGE=nginx:1.26.6
 # 若你有穩定的 digest，可把 BASE_IMAGE 改為帶有 sha256 的鏡像（更安全）
 FROM ${BASE_IMAGE}
 
-# 在建置時更新基底套件以嘗試獲得最新修補（建議仍以新映像為主）
-RUN apk update && apk upgrade --no-cache
+# 在建置時嘗試升級系統套件，支援多種 package manager：
+# - 若為 Alpine (apk)，使用 apk upgrade
+# - 若為 Debian/Ubuntu (apt-get)，使用 apt-get upgrade
+# 這樣可以在不同 base image 下盡量取得已修補的套件
+RUN if command -v apk >/dev/null 2>&1; then \
+      apk update && apk upgrade --no-cache; \
+    elif command -v apt-get >/dev/null 2>&1; then \
+      apt-get update && apt-get upgrade -y && rm -rf /var/lib/apt/lists/*; \
+    else \
+      echo "No known package manager found; skipping upgrade"; \
+    fi
 
 # 維護者資訊
 LABEL org.opencontainers.image.source="https://github.com/YOUR_USERNAME/YOUR_REPO"
