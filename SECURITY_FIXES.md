@@ -48,3 +48,31 @@ chmod +x scripts/test_local.sh
 如需，我可以：
 - 進一步替所有 action 查詢並鎖定到具體 minor/patch release（需網路查詢）。
 - 把這些變更提交成一個 commit 並開 PR（若你要我幫你在 repo 推送並建立 PR）。
+
+## 如發現已洩漏（重要操作指南）
+
+1. **立即輪替受影響的憑證/令牌**（API keys、GCP/AWS 憑證、資料庫密碼、OAuth client secrets 等）。不要只從 repo 刪除：必須在服務端撤銷並重新產生。
+2. **清理 Git 歷史（如果憑證曾出現在 commit 歷史）**：使用 `git filter-repo` 或 BFG 移除敏感檔案/內容，並在清理後強制推送到遠端（注意會改寫歷史，需團隊協調）。範例：
+
+```bash
+# 使用 git-filter-repo (建議)
+git clone --mirror git@github.com:OWNER/REPO.git
+cd REPO.git
+git filter-repo --path-glob 'path/to/file/with/secret' --invert-paths
+git push --force
+```
+
+或用 BFG：
+```bash
+bfg --delete-files YOUR_SECRET_FILE
+git reflog expire --expire=now --all && git gc --prune=now --aggressive
+git push --force
+```
+
+3. **通知並紀錄**：建立事件紀錄，通知受影響團隊與服務擁有者，根據你的資安政策啟動 incident response。
+4. **把掃描結果放到安全位置**：將 gitleaks/Trivy/Semgrep 的報告上傳到安全的 artifact 或 CI 的保留位置，避免在公共討論中公開敏感細節。
+5. **加強 pipeline**：確保 `secret-scan` job 在 PR 階段也會運行並阻止含有敏感內容的 PR 合併（現在已新增 JSON 檢查步驟）。
+
+如果你要我代為處理歷史清理（會改寫 Git 歷史），請先確認你有權在此 repo 強制推送，並提供一個分支策略或允許我開 PR。我可以：
+- 幫你產生一個清理步驟腳本並說明操作風險。 
+- 或在 PR 中提供重寫歷史的腳本與步驟，交由你手動執行。

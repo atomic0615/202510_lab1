@@ -301,11 +301,36 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: 執行 Gitleaks 掃描
+      - name: 執行 Gitleaks 掃描（產生 JSON 報告）
         uses: gitleaks/gitleaks-action@v2
+        with:
+          args: detect --report-format json --report-path gitleaks-results.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITLEAKS_ENABLE_SUMMARY: true
+
+      - name: 檢查 Gitleaks 報告並失敗（若有洩漏）
+        if: always()
+        run: |
+          echo "檢查 gitleaks-results.json"
+          if [ ! -f gitleaks-results.json ]; then
+            echo "gitleaks 未產生報告，請檢查 action 設定"
+            exit 1
+          fi
+          count=$(jq '. | length' gitleaks-results.json 2>/dev/null || echo 0)
+          if [ "${count}" -gt 0 ]; then
+            echo "🔴 檢測到 ${count} 個敏感資訊洩漏，請立即移除並輪替相關憑證"
+            cat gitleaks-results.json
+            exit 1
+          else
+            echo "✅ 未檢測到洩漏"
+          fi
+
+      - name: 上傳 Gitleaks 報告
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gitleaks-report
+          path: gitleaks-results.json
 
   # 6. 安全掃描結果總結
   security-summary:
